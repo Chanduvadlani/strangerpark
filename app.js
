@@ -1,36 +1,98 @@
 let peer = new Peer();
 let conn = null;
+let typingTimer;
 
 peer.on("open", id => {
   document.getElementById("myid").innerText = id;
+  loadProfile();
 });
 
 peer.on("connection", c => {
+  if (conn) c.close();
   conn = c;
   startChat();
 });
 
+/* PROFILE */
+function saveProfile() {
+  let profile = {
+    username: username.value.trim(),
+    gender: gender.value,
+    looking: looking.value,
+    interest: interest.value.trim(),
+    location: location.value.trim()
+  };
+
+  if (!profile.username || !profile.gender || !profile.looking) {
+    alert("Username, gender & looking-for required");
+    return;
+  }
+
+  localStorage.setItem("sp_profile", JSON.stringify(profile));
+  alert("Profile saved");
+}
+
+function loadProfile() {
+  let p = JSON.parse(localStorage.getItem("sp_profile"));
+  if (!p) return;
+
+  username.value = p.username;
+  gender.value = p.gender;
+  looking.value = p.looking;
+  interest.value = p.interest;
+  location.value = p.location;
+}
+
+/* CONNECTION */
 function connectFriend() {
-  let id = document.getElementById("friendId").value;
+  let id = friendId.value.trim();
+  if (!id) return alert("Enter ID");
   conn = peer.connect(id);
   conn.on("open", startChat);
 }
 
+/* CHAT */
 function startChat() {
-  document.getElementById("chat").style.display = "block";
-  conn.on("data", msg => {
-    document.getElementById("messages").value += "Stranger: " + msg + "\n";
+  chat.style.display = "block";
+
+  conn.on("data", data => {
+    if (data === "__typing__") {
+      typing.innerText = "Stranger is typing...";
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => typing.innerText = "", 1000);
+    } else {
+      messages.value += "Stranger: " + data + "\n";
+    }
+  });
+
+  conn.on("close", () => {
+    messages.value += "❌ Disconnected\n";
   });
 }
 
 function sendMsg() {
-  let msg = document.getElementById("msg").value;
+  if (!conn) return;
+  let msg = msgInput.value.trim();
+  if (!msg) return;
+
   conn.send(msg);
-  document.getElementById("messages").value += "You: " + msg + "\n";
-  document.getElementById("msg").value = "";
+  messages.value += "You: " + msg + "\n";
+  msgInput.value = "";
 }
 
-function endChat() {
+msg.addEventListener("input", () => {
+  if (conn) conn.send("__typing__");
+});
+
+function disconnect() {
   if (conn) conn.close();
-  document.getElementById("chat").style.display = "none";
+  conn = null;
+  chat.style.display = "none";
+  messages.value = "";
+  typing.innerText = "";
+}
+
+/* UI */
+function toggleDark() {
+  document.body.classList.toggle("dark");
 }

@@ -9,24 +9,33 @@
 <body>
 
 <h2>🌳 StrangerPark</h2>
-<p style="text-align:center;">Meet. Talk. Disconnect.</p>
+<p class="tagline">Meet. Talk. Disconnect.</p>
 
-<div>
-  <p>Your ID:</p>
-  <b id="myid">Loading...</b>
+<button onclick="toggleDark()">🌙 Dark Mode</button>
+
+<!-- PROFILE SETUP -->
+<div class="box">
+  <h3>Your Profile</h3>
+  <input id="username" placeholder="Username">
+  
+  <select id="gender">
+    <option value="">Your Gender</option>
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+    <option value="other">Other</option>
+  </select>
+
+  <select id="looking">
+    <option value="">Looking For</option>
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+    <option value="any">Any</option>
+  </select>
+
+  <input id="interest" placeholder="Interests (music, movies)">
+  <input id="location" placeholder="Location (city/country)">
+
+  <button onclick="saveProfile()">Save Profile</button>
 </div>
 
-<div>
-  <input id="friendId" placeholder="Enter Friend ID">
-  <button onclick="connectFriend()">Connect</button>
-</div>
-
-<div id="chat" style="display:none;">
-  <p id="status">Connected</p>
-  <textarea id="messages" readonly style="width:100%;height:200px;"></textarea>
-  <input id="msg" placeholder="Type message">
-  <button onclick="sendMsg()">Send</button>
-  <button onclick="endChat()">End Chat</button>
-</div>
-
-<script src="https://unpkg.com
+<!--

@@ -1,3 +1,4 @@
+// ================= FIREBASE CONFIG =================
 const firebaseConfig = {
   apiKey: "AIzaSyDL27YgLcePboLFybnXMjeHGhsjSEvUGzk",
   authDomain: "strangerpark-chat-and-talk.firebaseapp.com",
@@ -7,33 +8,151 @@ const firebaseConfig = {
   appId: "1:104131882938:web:f9e585d35421625bf37783"
 };
 
+// ✅ Initialize Firebase (ONLY ONCE)
 firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ================= PEERJS =================
 let peer = new Peer();
 let conn = null;
-let typingTimer;
+let myPeerId = "";
+let myStream = null;
+let micOn = true;
+let camOn = true;
 
 peer.on("open", id => {
-  document.getElementById("myid").innerText = id;
-  loadProfile();
+  myPeerId = id;
+  console.log("Peer ID:", id);
 });
 
-peer.on("connection", c => {
-  if (conn) c.close();
-  conn = c;
-  startChat();
-});
+// ================= AUTH =================
+function register() {
+  auth.createUserWithEmailAndPassword(email.value, password.value)
+    .then(showProfile)
+    .catch(e => alert(e.message));
+}
 
-/* PROFILE */
-function saveProfile() {
-  let profile = {
-    username: username.value.trim(),
+function login() {
+  auth.signInWithEmailAndPassword(email.value, password.value)
+    .then(showProfile)
+    .catch(e => alert(e.message));
+}
+
+function guest() {
+  auth.signInAnonymously()
+    .then(showProfile)
+    .catch(e => alert(e.message));
+}
+
+function showProfile() {
+  loginBox.style.display = "none";
+  profileBox.style.display = "block";
+}
+
+// ================= MATCHING =================
+async function startMatching() {
+  if (!username.value || !gender.value || !looking.value) {
+    alert("Please fill username, gender and looking-for");
+    return;
+  }
+
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const myData = {
+    uid: user.uid,
+    username: username.value,
     gender: gender.value,
     looking: looking.value,
-    interest: interest.value.trim(),
-    location: location.value.trim()
+    interest: interest.value,
+    location: location.value,
+    peerId: myPeerId,
+    status: "waiting",
+    time: Date.now()
   };
 
-  if (!profile.username || !profile.gender || !profile.looking) {
+  await db.collection("users").doc(user.uid).set(myData);
+  findMatch(myData);
+}
+
+async function findMatch(me) {
+  let snap = await db.collection("users")
+    .where("gender", "==", me.looking)
+    .where("looking", "==", me.gender)
+    .where("status", "==", "waiting")
+    .limit(1)
+    .get();
+
+  if (!snap.empty) {
+    let other = snap.docs[0];
+
+    await db.collection("users").doc(me.uid).update({ status: "chatting" });
+    await db.collection("users").doc(other.id).update({ status: "chatting" });
+
+    conn = peer.connect(other.data().peerId);
+    conn.on("open", startVideoChat);
+  } else {
+    setTimeout(() => findMatch(me), 3000);
+  }
+}
+
+// ================= VIDEO + VOICE =================
+async function getMedia() {
+  myStream = await navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: true
+  });
+  myVideo.srcObject = myStream;
+}
+
+peer.on("call", call => {
+  getMedia().then(() => {
+    call.answer(myStream);
+    call.on("stream", remoteStream => {
+      remoteVideo.srcObject = remoteStream;
+    });
+  });
+});
+
+function startVideoChat() {
+  profileBox.style.display = "none";
+  chatBox.style.display = "block";
+
+  getMedia().then(() => {
+    let call = peer.call(conn.peer, myStream);
+    call.on("stream", remoteStream => {
+      remoteVideo.srcObject = remoteStream;
+    });
+  });
+}
+
+// ================= CONTROLS =================
+function toggleMic() {
+  if (!myStream) return;
+  micOn = !micOn;
+  myStream.getAudioTracks()[0].enabled = micOn;
+}
+
+function toggleCam() {
+  if (!myStream) return;
+  camOn = !camOn;
+  myStream.getVideoTracks()[0].enabled = camOn;
+}
+
+async function nextStranger() {
+  if (conn) conn.close();
+  if (myStream) myStream.getTracks().forEach(t => t.stop());
+
+  chatBox.style.display = "none";
+
+  const user = auth.currentUser;
+  if (user) {
+    await db.collection("users").doc(user.uid).update({ status: "waiting" });
+    startMatching();
+  }
+}
     alert("Username, gender & looking-for required");
     return;
   }

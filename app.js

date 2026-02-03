@@ -1,0 +1,36 @@
+let peer = new Peer();
+let conn = null;
+
+peer.on("open", id => {
+  document.getElementById("myid").innerText = id;
+});
+
+peer.on("connection", c => {
+  conn = c;
+  startChat();
+});
+
+function connectFriend() {
+  let id = document.getElementById("friendId").value;
+  conn = peer.connect(id);
+  conn.on("open", startChat);
+}
+
+function startChat() {
+  document.getElementById("chat").style.display = "block";
+  conn.on("data", msg => {
+    document.getElementById("messages").value += "Stranger: " + msg + "\n";
+  });
+}
+
+function sendMsg() {
+  let msg = document.getElementById("msg").value;
+  conn.send(msg);
+  document.getElementById("messages").value += "You: " + msg + "\n";
+  document.getElementById("msg").value = "";
+}
+
+function endChat() {
+  if (conn) conn.close();
+  document.getElementById("chat").style.display = "none";
+}

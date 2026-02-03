@@ -1,3 +1,13 @@
+const firebaseConfig = {
+  apiKey: "AIzaSyDL27YgLcePboLFybnXMjeHGhsjSEvUGzk",
+  authDomain: "strangerpark-chat-and-talk.firebaseapp.com",
+  projectId: "strangerpark-chat-and-talk",
+  storageBucket: "strangerpark-chat-and-talk.appspot.com",
+  messagingSenderId: "104131882938",
+  appId: "1:104131882938:web:f9e585d35421625bf37783"
+};
+
+firebase.initializeApp(firebaseConfig);
 let peer = new Peer();
 let conn = null;
 let typingTimer;

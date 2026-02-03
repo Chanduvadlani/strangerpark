@@ -1,19 +1,64 @@
 body {
-  font-family: Arial;
+  font-family: Arial, sans-serif;
   background: #eef5ee;
   padding: 10px;
+}
+
+h2, .tagline {
+  text-align: center;
+}
+
+.box {
+  background: white;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+}
+
+input, textarea, select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  box-sizing: border-box;
+}
+
+textarea {
+  height: 220px;
 }
 
 button {
   width: 100%;
   padding: 10px;
-  margin-top: 5px;
+  margin-top: 6px;
   background: #2e7d32;
   color: white;
   border: none;
+  border-radius: 5px;
+  font-size: 16px;
 }
 
-input {
-  width: 100%;
-  padding: 8px;
+.end {
+  background: #c62828;
+}
+
+.typing {
+  color: gray;
+  font-size: 14px;
+}
+
+/* DARK MODE */
+.dark {
+  background: #121212;
+  color: white;
+}
+
+.dark .box {
+  background: #1e1e1e;
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  background: #2b2b2b;
+  color: white;
 }

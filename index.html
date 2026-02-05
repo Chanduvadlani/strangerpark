@@ -9,7 +9,9 @@
 <body>
 
 <h2>🌳 StrangerPark</h2>
-<p class="tagline">Talk to strangers instantly</p>
+<p class="tagline">
+  <span id="onlineCount">0</span> people online
+</p>
 
 <!-- LOGIN -->
 <div id="loginBox">
@@ -34,6 +36,41 @@
     <option value="">Looking For</option>
     <option value="male">Male</option>
     <option value="female">Female</option>
+  </select>
+
+  <button onclick="startMatching()">Start Chat</button>
+</div>
+
+<!-- WAITING -->
+<div id="waitingBox" style="display:none;">
+  <p>🔎 Finding a stranger…</p>
+</div>
+
+<!-- CHAT -->
+<div id="chatBox" style="display:none;">
+  <div class="videos">
+    <video id="myVideo" autoplay muted></video>
+    <video id="remoteVideo" autoplay></video>
+  </div>
+
+  <div class="controls">
+    <button onclick="toggleMic()">🎙 Mic</button>
+    <button onclick="toggleCam()">🎥 Cam</button>
+    <button onclick="nextStranger()">⏭ Next</button>
+  </div>
+</div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- PEERJS -->
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+<script src="app.js"></script>
+</body>
+</html>
   </select>
 
   <input id="interest" placeholder="Interests (music, movies)">

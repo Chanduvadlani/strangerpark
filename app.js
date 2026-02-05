@@ -8,14 +8,18 @@ const firebaseConfig = {
   appId: "1:104131882938:web:f9e585d35421625bf37783"
 };
 
-// ✅ Initialize Firebase (ONLY ONCE)
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 // ================= PEERJS =================
-let peer = new Peer();
+let peer = new Peer(undefined, {
+  host: "peerjs-server.herokuapp.com",
+  secure: true,
+  port: 443
+});
+
 let conn = null;
 let myPeerId = "";
 let myStream = null;
@@ -24,7 +28,6 @@ let camOn = true;
 
 peer.on("open", id => {
   myPeerId = id;
-  console.log("Peer ID:", id);
 });
 
 // ================= AUTH =================
@@ -34,6 +37,200 @@ function register() {
     .catch(e => alert(e.message));
 }
 
+function login() {
+  auth.signInWithEmailAndPassword(email.value, password.value)
+    .then(showProfile)
+    .catch(e => alert(e.message));
+}
+
+function guest() {
+  auth.signInAnonymously().then(showProfile);
+}
+
+function showProfile() {
+  loginBox.style.display = "none";
+  profileBox.style.display = "block";
+}
+
+// ================= ONLINE COUNTER =================
+db.collection("users").where("status", "==", "waiting")
+  .onSnapshot(snap => {
+    document.getElementById("onlineCount").innerText = snap.size;
+  });
+
+// ================= MATCHING =================
+async function startMatching() {
+  if (!username.value || !gender.value || !looking.value) {
+    alert("Fill all details");
+    return;
+  }
+
+  profileBox.style.display = "none";
+  waitingBox.style.display = "block";
+
+  const user = auth.currentUser;
+
+  const myData = {
+    uid: user.uid,
+    gender: gender.value,
+    looking: looking.value,
+    peerId: myPeerId,
+    status: "waiting",
+    time: Date.now()
+  };
+
+  await db.collection("users").doc(user.uid).set(myData);
+  findMatch(myData);
+}
+
+async function findMatch(me) {
+  const snap = await db.collection("users")
+    .where("gender", "==", me.looking)
+    .where("looking", "==", me.gender)
+    .where("status", "==", "waiting")
+    .limit(1)
+    .get();
+
+  if (!snap.empty) {
+    const other = snap.docs[0];
+
+    await db.collection("users").doc(me.uid).update({ status: "chatting" });
+    await db.collection("users").doc(other.id).update({ status: "chatting" });
+
+    conn = peer.connect(other.data().peerId);
+    conn.on("open", startVideoChat);
+  } else {
+    setTimeout(() => findMatch(me), 3000);
+  }
+}
+
+// ================= VIDEO + VOICE =================
+async function getMedia() {
+  myStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  myVideo.srcObject = myStream;
+}
+
+peer.on("call", call => {
+  getMedia().then(() => {
+    call.answer(myStream);
+    call.on("stream", r => remoteVideo.srcObject = r);
+  });
+});
+
+function startVideoChat() {
+  waitingBox.style.display = "none";
+  chatBox.style.display = "block";
+
+  getMedia().then(() => {
+    const call = peer.call(conn.peer, myStream);
+    call.on("stream", r => remoteVideo.srcObject = r);
+  });
+}
+
+// ================= CONTROLS =================
+function toggleMic() {
+  micOn = !micOn;
+  myStream.getAudioTracks()[0].enabled = micOn;
+}
+
+function toggleCam() {
+  camOn = !camOn;
+  myStream.getVideoTracks()[0].enabled = camOn;
+}
+
+async function nextStranger() {
+  if (conn) conn.close();
+  if (myStream) myStream.getTracks().forEach(t => t.stop());
+
+  chatBox.style.display = "none";
+  waitingBox.style.display = "block";
+
+  const user = auth.currentUser;
+  await db.collection("users").doc(user.uid).update({ status: "waiting" });
+  startMatching();
+}
+
+  const user = auth.currentUser;
+
+  const myData = {
+    uid: user.uid,
+    gender: gender.value,
+    looking: looking.value,
+    peerId: myPeerId,
+    status: "waiting",
+    time: Date.now()
+  };
+
+  await db.collection("users").doc(user.uid).set(myData);
+  findMatch(myData);
+}
+
+async function findMatch(me) {
+  const snap = await db.collection("users")
+    .where("gender", "==", me.looking)
+    .where("looking", "==", me.gender)
+    .where("status", "==", "waiting")
+    .limit(1)
+    .get();
+
+  if (!snap.empty) {
+    const other = snap.docs[0];
+
+    await db.collection("users").doc(me.uid).update({ status: "chatting" });
+    await db.collection("users").doc(other.id).update({ status: "chatting" });
+
+    conn = peer.connect(other.data().peerId);
+    conn.on("open", startVideoChat);
+  } else {
+    setTimeout(() => findMatch(me), 3000);
+  }
+}
+
+// ================= VIDEO + VOICE =================
+async function getMedia() {
+  myStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  myVideo.srcObject = myStream;
+}
+
+peer.on("call", call => {
+  getMedia().then(() => {
+    call.answer(myStream);
+    call.on("stream", r => remoteVideo.srcObject = r);
+  });
+});
+
+function startVideoChat() {
+  waitingBox.style.display = "none";
+  chatBox.style.display = "block";
+
+  getMedia().then(() => {
+    const call = peer.call(conn.peer, myStream);
+    call.on("stream", r => remoteVideo.srcObject = r);
+  });
+}
+
+// ================= CONTROLS =================
+function toggleMic() {
+  micOn = !micOn;
+  myStream.getAudioTracks()[0].enabled = micOn;
+}
+
+function toggleCam() {
+  camOn = !camOn;
+  myStream.getVideoTracks()[0].enabled = camOn;
+}
+
+async function nextStranger() {
+  if (conn) conn.close();
+  if (myStream) myStream.getTracks().forEach(t => t.stop());
+
+  chatBox.style.display = "none";
+  waitingBox.style.display = "block";
+
+  const user = auth.currentUser;
+  await db.collection("users").doc(user.uid).update({ status: "waiting" });
+  startMatching();
+}
 function login() {
   auth.signInWithEmailAndPassword(email.value, password.value)
     .then(showProfile)

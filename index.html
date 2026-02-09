@@ -1,35 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StrangerPark Elite</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <meta charset="UTF-8">
+  <title>StrangerPark | Elite</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
-    <div id="app">
-        <section id="auth-screen" class="screen active">
-            <div class="glass-card">
-                <h1>🌳 StrangerPark</h1>
-                <button onclick="loginWithGoogle()" class="btn-google">Login with Google</button>
-                <button onclick="guestLogin()" class="btn-guest">Continue as Guest</button>
-            </div>
-        </section>
 
-        <section id="main-screen" class="screen">
-            <div id="tab-content" class="content-area"></div>
-
-            <nav class="bottom-nav">
-                <button onclick="switchTab('groups')">👥 Groups</button>
-                <button onclick="switchTab('random')" class="active">🎲 Random</button>
-                <button onclick="switchTab('chats')">💬 Chats</button>
-                <button onclick="switchTab('people')">👫 People</button>
-                <button onclick="switchTab('profile')">👤 Profile</button>
-            </nav>
-        </section>
+<div id="app">
+  <section id="auth-screen" class="screen active">
+    <div class="glass-card">
+      <h1>🌳 StrangerPark</h1>
+      <button onclick="guestLogin()" class="btn-primary">Guest Login</button>
+      <button onclick="loginWithGoogle()" class="btn-google">Login with Google</button>
     </div>
-    <script src="app.js"></script>
+  </section>
+
+  <section id="main-screen" class="screen">
+    <div id="tab-content" class="content-area">
+      </div>
+
+    <nav class="bottom-nav">
+      <button onclick="switchTab('groups')">👥 Groups</button>
+      <button onclick="switchTab('random')" id="nav-random" class="active">🎲 Random</button>
+      <button onclick="switchTab('chats')">💬 Chats</button>
+      <button onclick="switchTab('people')">👫 People</button>
+      <button onclick="switchTab('profile')">👤 Me</button>
+    </nav>
+  </section>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>

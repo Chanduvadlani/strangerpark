@@ -12,7 +12,7 @@ async function guestLogin() {
     if (error) return alert(error.message);
     currentUser = data.user;
     
-    // Register Profile
+    // Initial Profile Registration
     await supabaseClient.from('profiles').upsert({ id: currentUser.id, status: 'offline' });
     
     initMainApp();
@@ -31,47 +31,91 @@ function initMainApp() {
     switchTab('random');
 }
 
-// --- TAB NAVIGATION ---
-function switchTab(tabId) {
+// --- UNIFIED TAB NAVIGATION ---
+async function switchTab(tabId) {
     const content = document.getElementById('tab-content');
-    document.querySelectorAll('.bottom-nav button').forEach(btn => btn.classList.remove('active'));
     
+    // Update active UI state for nav buttons
+    document.querySelectorAll('.bottom-nav button').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`nav-${tabId}`) || document.querySelector(`button[onclick*="${tabId}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Route to correct screen logic
     if (tabId === 'random') {
-        content.innerHTML = `
-            <div class="video-grid">
-                <video id="remoteVideo" autoplay></video>
-                <video id="myVideo" autoplay muted></video>
-            </div>
-            <div style="padding: 10px; display: flex; gap: 5px; background: #1e293b; padding-bottom: 80px;">
-                <button onclick="startRandomMatch('video')" style="flex:1;">Video Chat</button>
-                <button onclick="startRandomMatch('text')" style="flex:1; background:#6366f1; color:white;">Text Chat</button>
-            </div>`;
-        setupMedia();
-    } else {
-        content.innerHTML = `<div style="padding:20px;"><h2>${tabId.toUpperCase()}</h2><p>Feature coming soon...</p></div>`;
+        renderRandomTab(content);
+    } else if (tabId === 'people') {
+        renderPeopleTab(content);
+        // loadFriends() would go here if defined
+    } else if (tabId === 'profile') {
+        renderProfileTab(content);
+        loadProfileData();
+    } else if (tabId === 'chats') {
+        content.innerHTML = `<div style="padding:20px;"><h3>Messages</h3><p>Friend and Group chats appearing soon...</p></div>`;
+    } else if (tabId === 'groups') {
+        content.innerHTML = `<div style="padding:20px;"><h3>Groups</h3><p>Join public groups or create your own.</p></div>`;
     }
 }
 
-async function setupMedia() {
-    myStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    document.getElementById('myVideo').srcObject = myStream;
+// --- RENDER LOGIC ---
+function renderRandomTab(container) {
+    container.innerHTML = `
+        <div class="video-grid">
+            <video id="remoteVideo" autoplay></video>
+            <video id="myVideo" autoplay muted></video>
+        </div>
+        <div style="padding: 10px; display: flex; gap: 5px; background: #1e293b; padding-bottom: 80px;">
+            <button onclick="startRandomMatch('video')" style="flex:1;">Video Chat</button>
+            <button onclick="startRandomMatch('text')" style="flex:1; background:#6366f1; color:white;">Text Chat</button>
+        </div>`;
+    setupMedia();
 }
 
-// --- MATCHMAKING (15-Second Relaxed Filter) ---
+function renderProfileTab(container) {
+    container.innerHTML = `
+        <div class="glass-card" style="margin-top:20px;">
+            <h3>Your Profile</h3>
+            <input id="p-username" placeholder="Username" style="width:100%; margin-bottom:10px;">
+            <select id="p-gender" style="width:100%; margin-bottom:10px;">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+            </select>
+            <select id="p-looking" style="width:100%; margin-bottom:10px;">
+                <option value="male">Looking for Male</option>
+                <option value="female">Looking for Female</option>
+                <option value="any">Looking for Anyone</option>
+            </select>
+            <input id="p-interests" placeholder="Interests (comma separated)" style="width:100%; margin-bottom:10px;">
+            <button onclick="saveProfile()" class="btn-primary">Save Profile</button>
+        </div>`;
+}
+
+function renderPeopleTab(container) {
+    container.innerHTML = `
+        <div style="padding:20px; padding-bottom:100px;">
+            <h3>Find People</h3>
+            <div style="display:flex; gap:5px;">
+                <input id="search-uid" placeholder="Enter Username" style="flex:1;">
+                <button style="width:auto;">🔍</button>
+            </div>
+            <p style="font-size:12px; color:#94a3b8; margin-top:10px;">Your User ID: ${currentUser.id}</p>
+        </div>`;
+}
+
+// --- MATCHMAKING ENGINE ---
 async function startRandomMatch(mode) {
     let timer = 0;
     const maxWait = 15;
     
-    // Update status to waiting
     await supabaseClient.from('profiles').update({ status: 'waiting', peer_id: peer.id }).eq('id', currentUser.id);
 
     const searchLoop = setInterval(async () => {
         timer++;
         
-        // Try strict match via RPC function
+        // Use the "Relaxed Filter" RPC function
         const { data } = await supabaseClient.rpc('find_random_match', { 
             my_id: currentUser.id,
-            f_gender: 'female' // Adjust based on user choice
+            f_gender: document.getElementById('p-looking')?.value || 'any' 
         });
 
         if (data?.length > 0 || timer >= maxWait) {
@@ -82,64 +126,13 @@ async function startRandomMatch(mode) {
                 const call = peer.call(targetPeerId, myStream);
                 setupCallHandlers(call);
             } else {
-                alert("No filtered match found within 15s. Waiting for anyone to connect...");
+                alert("Searching broadly... Please wait for a connection.");
             }
         }
     }, 1000);
 }
 
-function setupCallHandlers(call) {
-    currentCall = call;
-    call.on('stream', remoteStream => {
-        document.getElementById('remoteVideo').srcObject = remoteStream;
-    });
-}
-
-// Handle Incoming Calls
-peer.on('call', call => {
-    call.answer(myStream);
-    setupCallHandlers(call);
-});
-// --- UPDATED TAB NAVIGATION ---
-async function switchTab(tabId) {
-    const content = document.getElementById('tab-content');
-    document.querySelectorAll('.bottom-nav button').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(`nav-${tabId}`)?.classList.add('active');
-    
-    if (tabId === 'random') {
-        renderRandomTab(content);
-    } else if (tabId === 'people') {
-        renderPeopleTab(content);
-        loadFriends();
-    } else if (tabId === 'profile') {
-        renderProfileTab(content);
-        loadProfileData();
-    } else {
-        content.innerHTML = `<div style="padding:20px;"><h2>${tabId.toUpperCase()}</h2><p>Coming Soon...</p></div>`;
-    }
-}
-
-// --- PROFILE TAB LOGIC ---
-function renderProfileTab(container) {
-    container.innerHTML = `
-        <div class="glass-card" style="margin-top:20px;">
-            <h3>Your Profile</h3>
-            <input id="p-username" placeholder="Username">
-            <select id="p-gender">
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-            </select>
-            <select id="p-looking">
-                <option value="male">Looking for Male</option>
-                <option value="female">Looking for Female</option>
-                <option value="any">Looking for Anyone</option>
-            </select>
-            <input id="p-interests" placeholder="Interests (comma separated)">
-            <button onclick="saveProfile()" class="btn-primary">Save Profile</button>
-        </div>`;
-}
-
+// --- DATA HANDLERS ---
 async function saveProfile() {
     const updates = {
         id: currentUser.id,
@@ -150,8 +143,7 @@ async function saveProfile() {
         updated_at: new Date()
     };
     const { error } = await supabaseClient.from('profiles').upsert(updates);
-    if (error) alert(error.message);
-    else alert("Profile Updated!");
+    if (error) alert(error.message); else alert("Profile Updated!");
 }
 
 async function loadProfileData() {
@@ -162,4 +154,25 @@ async function loadProfileData() {
         document.getElementById('p-looking').value = data.looking_for || "any";
         document.getElementById('p-interests').value = data.interests?.join(',') || "";
     }
-            }
+}
+
+async function setupMedia() {
+    try {
+        myStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById('myVideo').srcObject = myStream;
+    } catch (e) {
+        console.error("Camera access denied", e);
+    }
+}
+
+function setupCallHandlers(call) {
+    currentCall = call;
+    call.on('stream', remoteStream => {
+        document.getElementById('remoteVideo').srcObject = remoteStream;
+    });
+}
+
+peer.on('call', call => {
+    call.answer(myStream);
+    setupCallHandlers(call);
+});

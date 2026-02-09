@@ -100,3 +100,66 @@ peer.on('call', call => {
     call.answer(myStream);
     setupCallHandlers(call);
 });
+// --- UPDATED TAB NAVIGATION ---
+async function switchTab(tabId) {
+    const content = document.getElementById('tab-content');
+    document.querySelectorAll('.bottom-nav button').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`nav-${tabId}`)?.classList.add('active');
+    
+    if (tabId === 'random') {
+        renderRandomTab(content);
+    } else if (tabId === 'people') {
+        renderPeopleTab(content);
+        loadFriends();
+    } else if (tabId === 'profile') {
+        renderProfileTab(content);
+        loadProfileData();
+    } else {
+        content.innerHTML = `<div style="padding:20px;"><h2>${tabId.toUpperCase()}</h2><p>Coming Soon...</p></div>`;
+    }
+}
+
+// --- PROFILE TAB LOGIC ---
+function renderProfileTab(container) {
+    container.innerHTML = `
+        <div class="glass-card" style="margin-top:20px;">
+            <h3>Your Profile</h3>
+            <input id="p-username" placeholder="Username">
+            <select id="p-gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+            </select>
+            <select id="p-looking">
+                <option value="male">Looking for Male</option>
+                <option value="female">Looking for Female</option>
+                <option value="any">Looking for Anyone</option>
+            </select>
+            <input id="p-interests" placeholder="Interests (comma separated)">
+            <button onclick="saveProfile()" class="btn-primary">Save Profile</button>
+        </div>`;
+}
+
+async function saveProfile() {
+    const updates = {
+        id: currentUser.id,
+        username: document.getElementById('p-username').value,
+        gender: document.getElementById('p-gender').value,
+        looking_for: document.getElementById('p-looking').value,
+        interests: document.getElementById('p-interests').value.split(','),
+        updated_at: new Date()
+    };
+    const { error } = await supabaseClient.from('profiles').upsert(updates);
+    if (error) alert(error.message);
+    else alert("Profile Updated!");
+}
+
+async function loadProfileData() {
+    const { data } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+    if (data) {
+        document.getElementById('p-username').value = data.username || "";
+        document.getElementById('p-gender').value = data.gender || "male";
+        document.getElementById('p-looking').value = data.looking_for || "any";
+        document.getElementById('p-interests').value = data.interests?.join(',') || "";
+    }
+            }

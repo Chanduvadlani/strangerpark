@@ -1,96 +1,102 @@
+// CONFIGURATION
 const SUPABASE_URL = 'https://mzpeonafplfyftuxybdj.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_QD-aJKn3zAQys2OOjltEog_OJmL7QPd'; // Use your service_role or anon key here
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_KEY = 'sb_publishable_QD-aJKn3zAQys2OOjltEog_OJmL7QPd';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let peer = new Peer();
-let myStream, user, currentCall;
+let myStream, currentUser, currentCall;
 
-// AUTHENTICATION
-async function loginWithGoogle() {
-    await supabase.auth.signInWithOAuth({ provider: 'google' });
-}
-
+// --- AUTHENTICATION ---
 async function guestLogin() {
-    const { data, error } = await supabase.auth.signInAnonymously();
-    if (error) return alert("Connection Error: " + error.message);
-    user = data.user;
-    initApp();
+    const { data, error } = await supabaseClient.auth.signInAnonymously();
+    if (error) return alert(error.message);
+    currentUser = data.user;
+    
+    // Register Profile
+    await supabaseClient.from('profiles').upsert({ id: currentUser.id, status: 'offline' });
+    
+    initMainApp();
 }
 
-function initApp() {
+async function loginWithGoogle() {
+    await supabaseClient.auth.signInWithOAuth({ 
+        provider: 'google',
+        options: { redirectTo: 'https://chanduvadlani.github.io/strangerpark/' }
+    });
+}
+
+function initMainApp() {
     document.getElementById('auth-screen').classList.remove('active');
     document.getElementById('main-screen').classList.add('active');
     switchTab('random');
 }
 
-// TAB NAVIGATION
-function switchTab(tab) {
+// --- TAB NAVIGATION ---
+function switchTab(tabId) {
     const content = document.getElementById('tab-content');
-    document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.bottom-nav button').forEach(btn => btn.classList.remove('active'));
     
-    if (tab === 'random') {
+    if (tabId === 'random') {
         content.innerHTML = `
-            <div style="padding: 20px;">
-                <video id="remoteVideo" class="video-box" autoplay></video>
-                <button onclick="startMatching()" class="btn-next">Find Stranger</button>
-                <p id="statusMsg" style="text-align:center;">Ready to chat</p>
+            <div class="video-grid">
+                <video id="remoteVideo" autoplay></video>
+                <video id="myVideo" autoplay muted></video>
+            </div>
+            <div style="padding: 10px; display: flex; gap: 5px; background: #1e293b; padding-bottom: 80px;">
+                <button onclick="startRandomMatch('video')" style="flex:1;">Video Chat</button>
+                <button onclick="startRandomMatch('text')" style="flex:1; background:#6366f1; color:white;">Text Chat</button>
             </div>`;
-        initMedia();
+        setupMedia();
     } else {
-        content.innerHTML = `<h2 style="padding:20px;">${tab.toUpperCase()} Coming Soon</h2>`;
+        content.innerHTML = `<div style="padding:20px;"><h2>${tabId.toUpperCase()}</h2><p>Feature coming soon...</p></div>`;
     }
 }
 
-async function initMedia() {
+async function setupMedia() {
     myStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('myVideo').srcObject = myStream;
 }
 
-// MATCHMAKING (The 15-second Rule)
-async function startMatching() {
-    const status = document.getElementById('statusMsg');
-    status.innerText = "Searching with filters...";
-    
+// --- MATCHMAKING (15-Second Relaxed Filter) ---
+async function startRandomMatch(mode) {
     let timer = 0;
-    const maxFilterWait = 15;
+    const maxWait = 15;
     
-    // Set self to waiting in DB
-    await supabase.from('profiles').upsert({ id: user.id, status: 'waiting', peer_id: peer.id });
-    
+    // Update status to waiting
+    await supabaseClient.from('profiles').update({ status: 'waiting', peer_id: peer.id }).eq('id', currentUser.id);
+
     const searchLoop = setInterval(async () => {
         timer++;
         
-        // 1. Try finding match with RPC
-        const { data } = await supabase.rpc('find_random_match', {
-            my_id: user.id,
-            f_gender: 'female' // Change based on UI selection
+        // Try strict match via RPC function
+        const { data } = await supabaseClient.rpc('find_random_match', { 
+            my_id: currentUser.id,
+            f_gender: 'female' // Adjust based on user choice
         });
-        
-        if (data?.length > 0 || timer >= maxFilterWait) {
+
+        if (data?.length > 0 || timer >= maxWait) {
             clearInterval(searchLoop);
             const targetPeerId = data?.[0]?.target_peer_id;
             
             if (targetPeerId) {
-                connectTo(targetPeerId);
+                const call = peer.call(targetPeerId, myStream);
+                setupCallHandlers(call);
             } else {
-                status.innerText = "No one found. Waiting for someone to call you...";
+                alert("No filtered match found within 15s. Waiting for anyone to connect...");
             }
         }
     }, 1000);
 }
 
-function connectTo(peerId) {
-    currentCall = peer.call(peerId, myStream);
-    currentCall.on('stream', (remoteStream) => {
+function setupCallHandlers(call) {
+    currentCall = call;
+    call.on('stream', remoteStream => {
         document.getElementById('remoteVideo').srcObject = remoteStream;
-        document.getElementById('statusMsg').innerText = "Connected!";
     });
 }
 
 // Handle Incoming Calls
-peer.on('call', (call) => {
+peer.on('call', call => {
     call.answer(myStream);
-    call.on('stream', (remoteStream) => {
-        document.getElementById('remoteVideo').srcObject = remoteStream;
-        document.getElementById('statusMsg').innerText = "Connected!";
-    });
+    setupCallHandlers(call);
 });

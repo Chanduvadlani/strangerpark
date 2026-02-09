@@ -2,110 +2,54 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>StrangerPark</title>
+  <title>StrangerPark | Supabase Edition</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h2>🌳 StrangerPark</h2>
-<p class="tagline">
-  <span id="onlineCount">0</span> people online
-</p>
-
-<!-- LOGIN -->
-<div id="loginBox">
-  <input id="email" placeholder="Email (optional)">
-  <input id="password" type="password" placeholder="Password (optional)">
-  <button onclick="register()">Register</button>
-  <button onclick="login()">Login</button>
-  <button onclick="guest()">Continue as Guest</button>
+<div class="header">
+  <h2>🌳 StrangerPark</h2>
+  <p><span id="onlineCount">0</span> strangers online</p>
 </div>
 
-<!-- PROFILE -->
-<div id="profileBox" style="display:none;">
-  <input id="username" placeholder="Username">
+<div id="loginBox" class="container">
+  <button onclick="guestLogin()" class="btn-primary">Continue as Guest</button>
+</div>
 
+<div id="profileBox" class="container" style="display:none;">
+  <h3>Set Your Preferences</h3>
   <select id="gender">
-    <option value="">Your Gender</option>
-    <option value="male">Male</option>
-    <option value="female">Female</option>
+    <option value="male">I am Male</option>
+    <option value="female">I am Female</option>
   </select>
-
   <select id="looking">
-    <option value="">Looking For</option>
-    <option value="male">Male</option>
-    <option value="female">Female</option>
+    <option value="female">Looking for Female</option>
+    <option value="male">Looking for Male</option>
   </select>
-
-  <button onclick="startMatching()">Start Chat</button>
+  <input id="interest" placeholder="Interests (e.g. music, coding)">
+  <button onclick="startMatching()" class="btn-success">Start Chatting</button>
 </div>
 
-<!-- WAITING -->
-<div id="waitingBox" style="display:none;">
-  <p>🔎 Finding a stranger…</p>
+<div id="waitingBox" class="container" style="display:none;">
+  <div class="loader"></div>
+  <p>Searching for a stranger...</p>
 </div>
 
-<!-- CHAT -->
 <div id="chatBox" style="display:none;">
   <div class="videos">
-    <video id="myVideo" autoplay muted></video>
-    <video id="remoteVideo" autoplay></video>
+    <video id="myVideo" autoplay muted playsinline></video>
+    <video id="remoteVideo" autoplay playsinline></video>
   </div>
-
   <div class="controls">
-    <button onclick="toggleMic()">🎙 Mic</button>
-    <button onclick="toggleCam()">🎥 Cam</button>
-    <button onclick="nextStranger()">⏭ Next</button>
+    <button onclick="toggleMic()" id="micBtn">🎙 Mic ON</button>
+    <button onclick="toggleCam()" id="camBtn">🎥 Cam ON</button>
+    <button onclick="nextStranger()" class="btn-next">⏭ Next</button>
   </div>
 </div>
 
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-<!-- PEERJS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
 <script src="app.js"></script>
 </body>
 </html>
-  </select>
-
-  <input id="interest" placeholder="Interests (music, movies)">
-  <input id="location" placeholder="Location (city/country)">
-
-  <button onclick="startMatching()">Start Chat</button>
-</div>
-
-<!-- CHAT -->
-<div id="chatBox" style="display:none;">
-  <div class="videos">
-    <video id="myVideo" autoplay muted></video>
-    <video id="remoteVideo" autoplay></video>
-  </div>
-
-  <div class="controls">
-    <button onclick="toggleMic()">🎙 Mic</button>
-    <button onclick="toggleCam()">🎥 Cam</button>
-    <button onclick="nextStranger()">⏭ Next</button>
-  </div>
-</div>
-
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-<!-- PEERJS -->
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
-<script src="app.js"></script>
-</body>
-</html>
-
-  <button onclick="saveProfile()">Save Profile</button>
-</div>
-
-<!--

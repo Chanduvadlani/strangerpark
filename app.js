@@ -1,424 +1,96 @@
-// ================= FIREBASE CONFIG =================
-const firebaseConfig = {
-  apiKey: "AIzaSyDL27YgLcePboLFybnXMjeHGhsjSEvUGzk",
-  authDomain: "strangerpark-chat-and-talk.firebaseapp.com",
-  projectId: "strangerpark-chat-and-talk",
-  storageBucket: "strangerpark-chat-and-talk.appspot.com",
-  messagingSenderId: "104131882938",
-  appId: "1:104131882938:web:f9e585d35421625bf37783"
-};
+const SUPABASE_URL = 'https://mzpeonafplfyftuxybdj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QD-aJKn3zAQys2OOjltEog_OJmL7QPd'; // Use your service_role or anon key here
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-firebase.initializeApp(firebaseConfig);
+let peer = new Peer();
+let myStream, user, currentCall;
 
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-// ================= PEERJS =================
-let peer = new Peer(undefined, {
-  host: "peerjs-server.herokuapp.com",
-  secure: true,
-  port: 443
-});
-
-let conn = null;
-let myPeerId = "";
-let myStream = null;
-let micOn = true;
-let camOn = true;
-
-peer.on("open", id => {
-  myPeerId = id;
-});
-
-// ================= AUTH =================
-function register() {
-  auth.createUserWithEmailAndPassword(email.value, password.value)
-    .then(showProfile)
-    .catch(e => alert(e.message));
+// AUTHENTICATION
+async function loginWithGoogle() {
+    await supabase.auth.signInWithOAuth({ provider: 'google' });
 }
 
-function login() {
-  auth.signInWithEmailAndPassword(email.value, password.value)
-    .then(showProfile)
-    .catch(e => alert(e.message));
+async function guestLogin() {
+    const { data, error } = await supabase.auth.signInAnonymously();
+    if (error) return alert("Connection Error: " + error.message);
+    user = data.user;
+    initApp();
 }
 
-function guest() {
-  auth.signInAnonymously().then(showProfile);
+function initApp() {
+    document.getElementById('auth-screen').classList.remove('active');
+    document.getElementById('main-screen').classList.add('active');
+    switchTab('random');
 }
 
-function showProfile() {
-  loginBox.style.display = "none";
-  profileBox.style.display = "block";
-}
-
-// ================= ONLINE COUNTER =================
-db.collection("users").where("status", "==", "waiting")
-  .onSnapshot(snap => {
-    document.getElementById("onlineCount").innerText = snap.size;
-  });
-
-// ================= MATCHING =================
-async function startMatching() {
-  if (!username.value || !gender.value || !looking.value) {
-    alert("Fill all details");
-    return;
-  }
-
-  profileBox.style.display = "none";
-  waitingBox.style.display = "block";
-
-  const user = auth.currentUser;
-
-  const myData = {
-    uid: user.uid,
-    gender: gender.value,
-    looking: looking.value,
-    peerId: myPeerId,
-    status: "waiting",
-    time: Date.now()
-  };
-
-  await db.collection("users").doc(user.uid).set(myData);
-  findMatch(myData);
-}
-
-async function findMatch(me) {
-  const snap = await db.collection("users")
-    .where("gender", "==", me.looking)
-    .where("looking", "==", me.gender)
-    .where("status", "==", "waiting")
-    .limit(1)
-    .get();
-
-  if (!snap.empty) {
-    const other = snap.docs[0];
-
-    await db.collection("users").doc(me.uid).update({ status: "chatting" });
-    await db.collection("users").doc(other.id).update({ status: "chatting" });
-
-    conn = peer.connect(other.data().peerId);
-    conn.on("open", startVideoChat);
-  } else {
-    setTimeout(() => findMatch(me), 3000);
-  }
-}
-
-// ================= VIDEO + VOICE =================
-async function getMedia() {
-  myStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  myVideo.srcObject = myStream;
-}
-
-peer.on("call", call => {
-  getMedia().then(() => {
-    call.answer(myStream);
-    call.on("stream", r => remoteVideo.srcObject = r);
-  });
-});
-
-function startVideoChat() {
-  waitingBox.style.display = "none";
-  chatBox.style.display = "block";
-
-  getMedia().then(() => {
-    const call = peer.call(conn.peer, myStream);
-    call.on("stream", r => remoteVideo.srcObject = r);
-  });
-}
-
-// ================= CONTROLS =================
-function toggleMic() {
-  micOn = !micOn;
-  myStream.getAudioTracks()[0].enabled = micOn;
-}
-
-function toggleCam() {
-  camOn = !camOn;
-  myStream.getVideoTracks()[0].enabled = camOn;
-}
-
-async function nextStranger() {
-  if (conn) conn.close();
-  if (myStream) myStream.getTracks().forEach(t => t.stop());
-
-  chatBox.style.display = "none";
-  waitingBox.style.display = "block";
-
-  const user = auth.currentUser;
-  await db.collection("users").doc(user.uid).update({ status: "waiting" });
-  startMatching();
-}
-
-  const user = auth.currentUser;
-
-  const myData = {
-    uid: user.uid,
-    gender: gender.value,
-    looking: looking.value,
-    peerId: myPeerId,
-    status: "waiting",
-    time: Date.now()
-  };
-
-  await db.collection("users").doc(user.uid).set(myData);
-  findMatch(myData);
-}
-
-async function findMatch(me) {
-  const snap = await db.collection("users")
-    .where("gender", "==", me.looking)
-    .where("looking", "==", me.gender)
-    .where("status", "==", "waiting")
-    .limit(1)
-    .get();
-
-  if (!snap.empty) {
-    const other = snap.docs[0];
-
-    await db.collection("users").doc(me.uid).update({ status: "chatting" });
-    await db.collection("users").doc(other.id).update({ status: "chatting" });
-
-    conn = peer.connect(other.data().peerId);
-    conn.on("open", startVideoChat);
-  } else {
-    setTimeout(() => findMatch(me), 3000);
-  }
-}
-
-// ================= VIDEO + VOICE =================
-async function getMedia() {
-  myStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  myVideo.srcObject = myStream;
-}
-
-peer.on("call", call => {
-  getMedia().then(() => {
-    call.answer(myStream);
-    call.on("stream", r => remoteVideo.srcObject = r);
-  });
-});
-
-function startVideoChat() {
-  waitingBox.style.display = "none";
-  chatBox.style.display = "block";
-
-  getMedia().then(() => {
-    const call = peer.call(conn.peer, myStream);
-    call.on("stream", r => remoteVideo.srcObject = r);
-  });
-}
-
-// ================= CONTROLS =================
-function toggleMic() {
-  micOn = !micOn;
-  myStream.getAudioTracks()[0].enabled = micOn;
-}
-
-function toggleCam() {
-  camOn = !camOn;
-  myStream.getVideoTracks()[0].enabled = camOn;
-}
-
-async function nextStranger() {
-  if (conn) conn.close();
-  if (myStream) myStream.getTracks().forEach(t => t.stop());
-
-  chatBox.style.display = "none";
-  waitingBox.style.display = "block";
-
-  const user = auth.currentUser;
-  await db.collection("users").doc(user.uid).update({ status: "waiting" });
-  startMatching();
-}
-function login() {
-  auth.signInWithEmailAndPassword(email.value, password.value)
-    .then(showProfile)
-    .catch(e => alert(e.message));
-}
-
-function guest() {
-  auth.signInAnonymously()
-    .then(showProfile)
-    .catch(e => alert(e.message));
-}
-
-function showProfile() {
-  loginBox.style.display = "none";
-  profileBox.style.display = "block";
-}
-
-// ================= MATCHING =================
-async function startMatching() {
-  if (!username.value || !gender.value || !looking.value) {
-    alert("Please fill username, gender and looking-for");
-    return;
-  }
-
-  const user = auth.currentUser;
-  if (!user) return;
-
-  const myData = {
-    uid: user.uid,
-    username: username.value,
-    gender: gender.value,
-    looking: looking.value,
-    interest: interest.value,
-    location: location.value,
-    peerId: myPeerId,
-    status: "waiting",
-    time: Date.now()
-  };
-
-  await db.collection("users").doc(user.uid).set(myData);
-  findMatch(myData);
-}
-
-async function findMatch(me) {
-  let snap = await db.collection("users")
-    .where("gender", "==", me.looking)
-    .where("looking", "==", me.gender)
-    .where("status", "==", "waiting")
-    .limit(1)
-    .get();
-
-  if (!snap.empty) {
-    let other = snap.docs[0];
-
-    await db.collection("users").doc(me.uid).update({ status: "chatting" });
-    await db.collection("users").doc(other.id).update({ status: "chatting" });
-
-    conn = peer.connect(other.data().peerId);
-    conn.on("open", startVideoChat);
-  } else {
-    setTimeout(() => findMatch(me), 3000);
-  }
-}
-
-// ================= VIDEO + VOICE =================
-async function getMedia() {
-  myStream = await navigator.mediaDevices.getUserMedia({
-    video: true,
-    audio: true
-  });
-  myVideo.srcObject = myStream;
-}
-
-peer.on("call", call => {
-  getMedia().then(() => {
-    call.answer(myStream);
-    call.on("stream", remoteStream => {
-      remoteVideo.srcObject = remoteStream;
-    });
-  });
-});
-
-function startVideoChat() {
-  profileBox.style.display = "none";
-  chatBox.style.display = "block";
-
-  getMedia().then(() => {
-    let call = peer.call(conn.peer, myStream);
-    call.on("stream", remoteStream => {
-      remoteVideo.srcObject = remoteStream;
-    });
-  });
-}
-
-// ================= CONTROLS =================
-function toggleMic() {
-  if (!myStream) return;
-  micOn = !micOn;
-  myStream.getAudioTracks()[0].enabled = micOn;
-}
-
-function toggleCam() {
-  if (!myStream) return;
-  camOn = !camOn;
-  myStream.getVideoTracks()[0].enabled = camOn;
-}
-
-async function nextStranger() {
-  if (conn) conn.close();
-  if (myStream) myStream.getTracks().forEach(t => t.stop());
-
-  chatBox.style.display = "none";
-
-  const user = auth.currentUser;
-  if (user) {
-    await db.collection("users").doc(user.uid).update({ status: "waiting" });
-    startMatching();
-  }
-}
-    alert("Username, gender & looking-for required");
-    return;
-  }
-
-  localStorage.setItem("sp_profile", JSON.stringify(profile));
-  alert("Profile saved");
-}
-
-function loadProfile() {
-  let p = JSON.parse(localStorage.getItem("sp_profile"));
-  if (!p) return;
-
-  username.value = p.username;
-  gender.value = p.gender;
-  looking.value = p.looking;
-  interest.value = p.interest;
-  location.value = p.location;
-}
-
-/* CONNECTION */
-function connectFriend() {
-  let id = friendId.value.trim();
-  if (!id) return alert("Enter ID");
-  conn = peer.connect(id);
-  conn.on("open", startChat);
-}
-
-/* CHAT */
-function startChat() {
-  chat.style.display = "block";
-
-  conn.on("data", data => {
-    if (data === "__typing__") {
-      typing.innerText = "Stranger is typing...";
-      clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => typing.innerText = "", 1000);
+// TAB NAVIGATION
+function switchTab(tab) {
+    const content = document.getElementById('tab-content');
+    document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+    
+    if (tab === 'random') {
+        content.innerHTML = `
+            <div style="padding: 20px;">
+                <video id="remoteVideo" class="video-box" autoplay></video>
+                <button onclick="startMatching()" class="btn-next">Find Stranger</button>
+                <p id="statusMsg" style="text-align:center;">Ready to chat</p>
+            </div>`;
+        initMedia();
     } else {
-      messages.value += "Stranger: " + data + "\n";
+        content.innerHTML = `<h2 style="padding:20px;">${tab.toUpperCase()} Coming Soon</h2>`;
     }
-  });
-
-  conn.on("close", () => {
-    messages.value += "❌ Disconnected\n";
-  });
 }
 
-function sendMsg() {
-  if (!conn) return;
-  let msg = msgInput.value.trim();
-  if (!msg) return;
-
-  conn.send(msg);
-  messages.value += "You: " + msg + "\n";
-  msgInput.value = "";
+async function initMedia() {
+    myStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 }
 
-msg.addEventListener("input", () => {
-  if (conn) conn.send("__typing__");
+// MATCHMAKING (The 15-second Rule)
+async function startMatching() {
+    const status = document.getElementById('statusMsg');
+    status.innerText = "Searching with filters...";
+    
+    let timer = 0;
+    const maxFilterWait = 15;
+    
+    // Set self to waiting in DB
+    await supabase.from('profiles').upsert({ id: user.id, status: 'waiting', peer_id: peer.id });
+    
+    const searchLoop = setInterval(async () => {
+        timer++;
+        
+        // 1. Try finding match with RPC
+        const { data } = await supabase.rpc('find_random_match', {
+            my_id: user.id,
+            f_gender: 'female' // Change based on UI selection
+        });
+        
+        if (data?.length > 0 || timer >= maxFilterWait) {
+            clearInterval(searchLoop);
+            const targetPeerId = data?.[0]?.target_peer_id;
+            
+            if (targetPeerId) {
+                connectTo(targetPeerId);
+            } else {
+                status.innerText = "No one found. Waiting for someone to call you...";
+            }
+        }
+    }, 1000);
+}
+
+function connectTo(peerId) {
+    currentCall = peer.call(peerId, myStream);
+    currentCall.on('stream', (remoteStream) => {
+        document.getElementById('remoteVideo').srcObject = remoteStream;
+        document.getElementById('statusMsg').innerText = "Connected!";
+    });
+}
+
+// Handle Incoming Calls
+peer.on('call', (call) => {
+    call.answer(myStream);
+    call.on('stream', (remoteStream) => {
+        document.getElementById('remoteVideo').srcObject = remoteStream;
+        document.getElementById('statusMsg').innerText = "Connected!";
+    });
 });
-
-function disconnect() {
-  if (conn) conn.close();
-  conn = null;
-  chat.style.display = "none";
-  messages.value = "";
-  typing.innerText = "";
-}
-
-/* UI */
-function toggleDark() {
-  document.body.classList.toggle("dark");
-}
